@@ -124,11 +124,11 @@ CFStringRef copy_developer_disk_image_path(AMDeviceRef device) {
         found = path_exists(path);
     }
     if (!found) {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Library/Developer/Xcode/iOS DeviceSupport/@%/DeveloperDiskImage.dmg"), home, version);
+        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Library/Developer/Xcode/iOS DeviceSupport/%@/DeveloperDiskImage.dmg"), home, version);
         found = path_exists(path);
     }
     if (!found) {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Developer/Platforms/iPhoneOS.platform/DeviceSupport/@%/DeveloperDiskImage.dmg"), version);
+        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@/DeveloperDiskImage.dmg"), version);
         found = path_exists(path);
     }
     if (!found) {
@@ -139,6 +139,15 @@ CFStringRef copy_developer_disk_image_path(AMDeviceRef device) {
         path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Developer/Platforms/iPhoneOS.platform/DeviceSupport/Latest/DeveloperDiskImage.dmg"));
         found = path_exists(path);
     }
+    if (!found) {
+        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Developer/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@/DeveloperDiskImage.dmg"), version);
+        found = path_exists(path);
+    }
+    if (!found) {
+        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Developer/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/DeviceSupport/Latest/DeveloperDiskImage.dmg"));
+        found = path_exists(path);
+    }
+
 
     CFRelease(version);
     CFRelease(build);
