@@ -105,51 +105,49 @@ CFStringRef copy_device_support_path(AMDeviceRef device) {
     CFStringRef path;
     bool found = false;
 
-    path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Library/Developer/Xcode/iOS DeviceSupport/%@ (%@)"), home, version, build);
-    found = path_exists(path);
+	CFStringRef xcodeDevPath = copy_xcode_dev_path();
 
-    if (!found)
-    {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)"), version, build);
-        found = path_exists(path);
-    }
-    if (!found)
-    {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Library/Developer/Xcode/iOS DeviceSupport/%@"), home, version);
-        found = path_exists(path);
-    }
-    if (!found)
-    {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@"), version);
-        found = path_exists(path);
-    }
-    if (!found)
-    {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@"), version);
-        found = path_exists(path);
-    }
-    if (!found)
-    {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Developer/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@"), version);
-        found = path_exists(path);
-    }
-    if (!found)
-    {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Developer/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/DeviceSupport/Latest"));
-        found = path_exists(path);
-    }
+	path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Library/Developer/Xcode/iOS DeviceSupport/%@ (%@)"), home, version, build);
+	found = path_exists(path);
 
-    CFRelease(version);
-    CFRelease(build);
+	if (!found)
+	{
+		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Library/Developer/Xcode/iOS DeviceSupport/%@"), home, version);
+		found = path_exists(path);
+	}
+	if (!found)
+	{
+		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Library/Developer/Xcode/iOS DeviceSupport/Latest"), home);
+		found = path_exists(path);
+	}
+	if (!found)
+	{
+		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)"), xcodeDevPath, version, build);
+		found = path_exists(path);
+	}
+	if (!found)
+	{
+		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/Platforms/iPhoneOS.platform/DeviceSupport/%@"), xcodeDevPath, version);
+		found = path_exists(path);
+	}
+	if (!found)
+	{
+		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/Platforms/iPhoneOS.platform/DeviceSupport/Latest"), xcodeDevPath);
+		found = path_exists(path);
+	}
 
-    if (!found)
-    {
-        CFRelease(path);
-        PRINT("[ !! ] Unable to locate DeviceSupport directory.\n");
-        exit(1);
-    }
+	CFRelease(version);
+	CFRelease(build);
+	CFRelease(xcodeDevPath);
 
-    return path;
+	if (!found)
+	{
+		PRINT("[ !! ] Unable to locate DeviceSupport directory.\n");
+		CFRelease(path);
+		exit(EXIT_FAILURE);
+	}
+
+	return path;
 }
 
 CFStringRef copy_developer_disk_image_path(AMDeviceRef device) {
@@ -159,49 +157,55 @@ CFStringRef copy_developer_disk_image_path(AMDeviceRef device) {
     CFStringRef path;
     bool found = false;
 
-    path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Library/Developer/Xcode/iOS DeviceSupport/%@ (%@)/DeveloperDiskImage.dmg"), home, version, build);
-    found = path_exists(path);
+	CFStringRef xcodeDevPath = copy_xcode_dev_path();
 
-    if (!found) {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@/DeveloperDiskImage.dmg)"), version, build);
-        found = path_exists(path);
-    }
-    if (!found) {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Library/Developer/Xcode/iOS DeviceSupport/%@/DeveloperDiskImage.dmg"), home, version);
-        found = path_exists(path);
-    }
-    if (!found) {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@/DeveloperDiskImage.dmg"), version);
-        found = path_exists(path);
-    }
-    if (!found) {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Library/Developer/Xcode/iOS DeviceSupport/Latest/DeveloperDiskImage.dmg"), home);
-        found = path_exists(path);
-    }
-    if (!found) {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Developer/Platforms/iPhoneOS.platform/DeviceSupport/Latest/DeveloperDiskImage.dmg"));
-        found = path_exists(path);
-    }
-    if (!found) {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Developer/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@/DeveloperDiskImage.dmg"), version);
-        found = path_exists(path);
-    }
-    if (!found) {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Developer/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/DeviceSupport/Latest/DeveloperDiskImage.dmg"));
-        found = path_exists(path);
-    }
+	path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Library/Developer/Xcode/iOS DeviceSupport/%@ (%@)/DeveloperDiskImage.dmg"), home, version, build);
+	found = path_exists(path);
 
+	if (!found)
+	{
+		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Library/Developer/Xcode/iOS DeviceSupport/%@/DeveloperDiskImage.dmg"), home, version);
+		found = path_exists(path);
+	}
+	if (!found)
+	{
+		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Library/Developer/Xcode/iOS DeviceSupport/Latest/DeveloperDiskImage.dmg"), home);
+		found = path_exists(path);
+	}
+	if (!found)
+	{
+		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)/DeveloperDiskImage.dmg"), xcodeDevPath, version, build);
+		found = path_exists(path);
+	}
+	if (!found)
+	{
+		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/Platforms/iPhoneOS.platform/DeviceSupport/%@/DeveloperDiskImage.dmg"), xcodeDevPath, version);
+		found = path_exists(path);
+	}
+	if (!found)
+	{
+		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/Platforms/iPhoneOS.platform/DeviceSupport/Latest/DeveloperDiskImage.dmg"), xcodeDevPath);
+		found = path_exists(path);
+	}
 
-    CFRelease(version);
-    CFRelease(build);
+	CFRelease(version);
+	CFRelease(build);
+	CFRelease(xcodeDevPath);
 
-    if (!found) {
-        CFRelease(path);
-        PRINT("[ !! ] Unable to locate DeviceSupport directory containing DeveloperDiskImage.dmg.\n");
-        exit(1);
-    }
+    if (!found)
+	{
+		PRINT("[ !! ] Unable to locate DeviceSupport directory containing DeveloperDiskImage.dmg.\n");
 
-    return path;
+		CFIndex pathLength = CFStringGetLength(path);
+		char *buffer = calloc(pathLength + 1, sizeof(char));
+		Boolean success = CFStringGetCString(path, buffer, pathLength + 1, kCFStringEncodingUTF8);
+		CFRelease(path);
+
+		if (success) PRINT("[ !! ] Last path checked: %s\n", buffer);
+		exit(EXIT_FAILURE);
+	}
+
+	return path;
 }
 
 void mount_callback(CFDictionaryRef dict, int arg) {
