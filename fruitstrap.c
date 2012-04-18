@@ -254,7 +254,7 @@ void mount_developer_image(AMDeviceRef device) {
         PRINT("[ 95%%] Developer disk image already mounted\n");
     } else {
         PRINT("[ !! ] Unable to mount developer disk image. (%x)\n", result);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     CFRelease(image_path);
@@ -436,7 +436,7 @@ void start_remote_debug_server(AMDeviceRef device) {
 
 void gdb_ready_handler(int signum)
 {
-	_exit(0);
+	_exit(EXIT_SUCCESS);
 }
 
 void handle_device(AMDeviceRef device) {
@@ -476,7 +476,7 @@ void handle_device(AMDeviceRef device) {
     CFRelease(relative_url);
 
     int afcFd;
-    assert(AMDeviceStartService(device, CFSTR("com.apple.afc"), &afcFd, NULL) == 0);
+    assert(AMDeviceStartService(device, CFSTR("com.apple.afc"), (service_conn_t *) &afcFd, NULL) == 0);
     assert(AMDeviceStopSession(device) == 0);
     assert(AMDeviceDisconnect(device) == 0);
 
@@ -495,25 +495,25 @@ void handle_device(AMDeviceRef device) {
     assert(AMDeviceStartSession(device) == 0);
 
     int installFd;
-    assert(AMDeviceStartService(device, CFSTR("com.apple.mobile.installation_proxy"), &installFd, NULL) == 0);
+    assert(AMDeviceStartService(device, CFSTR("com.apple.mobile.installation_proxy"), (service_conn_t *) &installFd, NULL) == 0);
 
     assert(AMDeviceStopSession(device) == 0);
     assert(AMDeviceDisconnect(device) == 0);
 
     if (operation == OP_INSTALL) {
-        
         mach_error_t result = AMDeviceInstallApplication(installFd, path, options, operation_callback, NULL);
         if (result != 0)
         {
-           PRINT("AMDeviceInstallApplication failed: %d\n", result);
-            exit(1);
+			PRINT("AMDeviceInstallApplication failed: %d\n", result);
+			exit(EXIT_FAILURE);
         }
-    } else if (operation == OP_UNINSTALL) {
+    }
+	else if (operation == OP_UNINSTALL) {
         mach_error_t result = AMDeviceUninstallApplication (installFd, path, NULL, operation_callback, NULL);
         if (result != 0)
         {
-           PRINT("AMDeviceUninstallApplication failed: %d\n", result);
-            exit(1);
+			PRINT("AMDeviceUninstallApplication failed: %d\n", result);
+			exit(EXIT_FAILURE);
         }
     }
 
@@ -529,7 +529,7 @@ void handle_device(AMDeviceRef device) {
         PRINT("[100%%] uninstalled package %s\n", app_path);
 
 
-    if (!debug) exit(0); // no debug phase
+    if (!debug) exit(EXIT_SUCCESS); // no debug phase
 
     AMDeviceConnect(device);
     assert(AMDeviceIsPaired(device));
@@ -554,7 +554,7 @@ void handle_device(AMDeviceRef device) {
     if (pid == 0) {
         system(GDB_SHELL);      // launch gdb
         kill(parent, SIGHUP);  // "No. I am your father."
-        _exit(0);
+        _exit(EXIT_SUCCESS);
     }
 }
 
@@ -570,7 +570,7 @@ void device_callback(struct am_device_notification_callback_info *info, void *ar
 void timeout_callback(CFRunLoopTimerRef timer, void *info) {
     if (!found_device) {
         PRINT("Timed out waiting for device.\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -633,7 +633,7 @@ int main(int argc, char *argv[]) {
     
     if (optind >= argc) {
         usage(argv [0]);
-        exit (0);
+        exit(EXIT_SUCCESS);
     }
 
     operation = OP_NONE;
@@ -645,12 +645,12 @@ int main(int argc, char *argv[]) {
         operation = OP_LIST_DEVICES;
     } else {
         usage (argv [0]);
-        exit (0);
+        exit(EXIT_SUCCESS);
     }
 
     if (operation != OP_LIST_DEVICES && !app_path) {
         usage(argv[0]);
-        exit(0);
+        exit(EXIT_SUCCESS);
     }
 
     if (operation == OP_INSTALL)
