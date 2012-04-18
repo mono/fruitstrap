@@ -79,6 +79,25 @@ Boolean path_exists(CFTypeRef path) {
     }
 }
 
+CFStringRef copy_xcode_dev_path() {
+	FILE *fpipe = NULL;
+	char *command = "xcode-select -print-path";
+
+	if (!(fpipe = (FILE *)popen(command, "r")))
+	{
+		perror("Error encountered while opening pipe");
+		exit(EXIT_FAILURE);
+	}
+
+	char buffer[256] = { '\0' };
+
+	fgets(buffer, sizeof(buffer), fpipe);
+	pclose(fpipe);
+
+	strtok(buffer, "\n");
+	return CFStringCreateWithCString(NULL, buffer, kCFStringEncodingUTF8);
+}
+
 CFStringRef copy_device_support_path(AMDeviceRef device) {
     CFStringRef version = AMDeviceCopyValue(device, 0, CFSTR("ProductVersion"));
     CFStringRef build = AMDeviceCopyValue(device, 0, CFSTR("BuildVersion"));
