@@ -476,7 +476,17 @@ void handle_device(AMDeviceRef device) {
     CFRelease(relative_url);
 
     int afcFd;
-    assert(AMDeviceStartService(device, CFSTR("com.apple.afc"), (service_conn_t *) &afcFd, NULL) == 0);
+	int startServiceAFCRetval = AMDeviceStartService(device, CFSTR("com.apple.afc"), (service_conn_t *) &afcFd, NULL);
+	printf("trying to start com.apple.afc : %d\n", startServiceAFCRetval);
+	
+	if( startServiceAFCRetval )
+	{
+		sleep(1);
+		//printf("trying to start com.apple.afc\n");
+		startServiceAFCRetval = AMDeviceStartService(device, CFSTR("com.apple.afc"), (service_conn_t *) &afcFd, NULL);
+	}
+	printf("trying to start com.apple.afc : %d\n", startServiceAFCRetval);
+    assert(startServiceAFCRetval == 0);
     assert(AMDeviceStopSession(device) == 0);
     assert(AMDeviceDisconnect(device) == 0);
 
@@ -561,7 +571,9 @@ void handle_device(AMDeviceRef device) {
 void device_callback(struct am_device_notification_callback_info *info, void *arg) {
     switch (info->msg) {
         case ADNCI_MSG_CONNECTED:
-            handle_device(info->dev);
+			if( info->dev->lockdown_conn ) {
+				handle_device(info->dev);
+			}
         default:
             break;
     }
@@ -656,7 +668,7 @@ int main(int argc, char *argv[]) {
     if (operation == OP_INSTALL)
         assert(access(app_path, F_OK) == 0);
 
-    AMDSetLogLevel(5); // otherwise syslog gets flooded with crap
+    AMDSetLogLevel(1+4+2+8+16+32+64+128); // otherwise syslog gets flooded with crap
     if (timeout > 0)
     {
         CFRunLoopTimerRef timer = CFRunLoopTimerCreate(NULL, CFAbsoluteTimeGetCurrent() + timeout, 0, 0, 0, timeout_callback, NULL);
@@ -670,5 +682,6 @@ int main(int argc, char *argv[]) {
 
     struct am_device_notification *notify;
     AMDeviceNotificationSubscribe(&device_callback, 0, 0, NULL, &notify);
+	
     CFRunLoopRun();
 }
