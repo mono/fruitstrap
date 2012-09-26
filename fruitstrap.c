@@ -38,16 +38,15 @@
     set inferior-auto-start-cfm off\n\
     set sharedLibrary load-rules dyld \".*libobjc.*\" all dyld \".*CoreFoundation.*\" all dyld \".*Foundation.*\" all dyld \".*libSystem.*\" all dyld \".*AppKit.*\" all dyld \".*PBGDBIntrospectionSupport.*\" all dyld \".*/usr/lib/dyld.*\" all dyld \".*CarbonDataFormatters.*\" all dyld \".*libauto.*\" all dyld \".*CFDataFormatters.*\" all dyld \"/System/Library/Frameworks\\\\\\\\|/System/Library/PrivateFrameworks\\\\\\\\|/usr/lib\" extern dyld \".*\" all exec \".*\" all\n\
     sharedlibrary apply-load-rules all\n\
-    set inferior-auto-start-dyld 1\n\
-    continue\n\
-    quit")
+    set inferior-auto-start-dyld 1\n")
 
 typedef enum {
     OP_NONE,
 
     OP_INSTALL,
     OP_UNINSTALL,
-    OP_LIST_DEVICES
+    OP_LIST_DEVICES,
+    OP_DEBUG,
 
 } operation_t;
 
@@ -58,6 +57,8 @@ int AMDeviceMountImage(AMDeviceRef device, CFStringRef image, CFDictionaryRef op
 int AMDeviceLookupApplications(AMDeviceRef device, int zero, CFDictionaryRef* result);
 
 bool found_device = false, debug = false, verbose = false, quiet = false;
+bool wait_with_gdb = false;
+bool no_mount = false;
 char *app_path = NULL;
 char *device_id = NULL;
 char *args = NULL;
@@ -462,81 +463,84 @@ void handle_device(AMDeviceRef device) {
 
     CFRetain(device); // don't know if this is necessary?
 
-    PRINT("[  0%%] Found device (%s), beginning install\n", CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding()));
-
-    AMDeviceConnect(device);
-    assert(AMDeviceIsPaired(device));
-    assert(AMDeviceValidatePairing(device) == 0);
-    assert(AMDeviceStartSession(device) == 0);
-
     CFStringRef path = CFStringCreateWithCString(NULL, app_path, kCFStringEncodingASCII);
     CFURLRef relative_url = CFURLCreateWithFileSystemPath(NULL, path, kCFURLPOSIXPathStyle, false);
     CFURLRef url = CFURLCopyAbsoluteURL(relative_url);
 
     CFRelease(relative_url);
 
-    int afcFd;
-	int startServiceAFCRetval = AMDeviceStartService(device, CFSTR("com.apple.afc"), (service_conn_t *) &afcFd, NULL);
-	printf("trying to start com.apple.afc : %d\n", startServiceAFCRetval);
+	if (operation == OP_INSTALL || operation == OP_UNINSTALL) {
+		PRINT("[  0%%] Found device (%s), beginning install\n", CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding()));
+
+		AMDeviceConnect(device);
+		assert(AMDeviceIsPaired(device));
+		assert(AMDeviceValidatePairing(device) == 0);
+		assert(AMDeviceStartSession(device) == 0);
+    
+    
+		int afcFd;
+		int startServiceAFCRetval = AMDeviceStartService(device, CFSTR("com.apple.afc"), (service_conn_t *) &afcFd, NULL);
+		printf("trying to start com.apple.afc : %d\n", startServiceAFCRetval);
+		
+		if( startServiceAFCRetval )
+		{
+			sleep(1);
+			//printf("trying to start com.apple.afc\n");
+			startServiceAFCRetval = AMDeviceStartService(device, CFSTR("com.apple.afc"), (service_conn_t *) &afcFd, NULL);
+		}
+		printf("trying to start com.apple.afc : %d\n", startServiceAFCRetval);
+		assert(startServiceAFCRetval == 0);
+		assert(AMDeviceStopSession(device) == 0);
+		assert(AMDeviceDisconnect(device) == 0);
 	
-	if( startServiceAFCRetval )
-	{
-		sleep(1);
-		//printf("trying to start com.apple.afc\n");
-		startServiceAFCRetval = AMDeviceStartService(device, CFSTR("com.apple.afc"), (service_conn_t *) &afcFd, NULL);
+		if (operation == OP_INSTALL) {
+			assert(AMDeviceTransferApplication(afcFd, path, NULL, transfer_callback, NULL) == 0);
+			close(afcFd);
+		}
+	
+		CFStringRef keys[] = { CFSTR("PackageType") };
+		CFStringRef values[] = { CFSTR("Developer") };
+		CFDictionaryRef options = CFDictionaryCreate(NULL, (const void **)&keys, (const void **)&values, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+	
+		AMDeviceConnect(device);
+		assert(AMDeviceIsPaired(device));
+		assert(AMDeviceValidatePairing(device) == 0);
+		assert(AMDeviceStartSession(device) == 0);
+	
+		int installFd;
+		assert(AMDeviceStartService(device, CFSTR("com.apple.mobile.installation_proxy"), (service_conn_t *) &installFd, NULL) == 0);
+	
+		assert(AMDeviceStopSession(device) == 0);
+		assert(AMDeviceDisconnect(device) == 0);
+	
+		if (operation == OP_INSTALL) {
+			mach_error_t result = AMDeviceInstallApplication(installFd, path, options, operation_callback, NULL);
+			if (result != 0)
+			{
+				PRINT("AMDeviceInstallApplication failed: %d\n", result);
+				exit(EXIT_FAILURE);
+			}
+		}
+		else if (operation == OP_UNINSTALL) {
+			mach_error_t result = AMDeviceUninstallApplication (installFd, path, NULL, operation_callback, NULL);
+			if (result != 0)
+			{
+				PRINT("AMDeviceUninstallApplication failed: %d\n", result);
+				exit(EXIT_FAILURE);
+			}
+		}
+	
+	
+		close(installFd);
+	
+		CFRelease(path);
+		CFRelease(options);
+	
+		if (operation == OP_INSTALL)
+			PRINT("[100%%] Installed package %s\n", app_path);
+		else if (operation == OP_UNINSTALL)
+			PRINT("[100%%] uninstalled package %s\n", app_path);
 	}
-	printf("trying to start com.apple.afc : %d\n", startServiceAFCRetval);
-    assert(startServiceAFCRetval == 0);
-    assert(AMDeviceStopSession(device) == 0);
-    assert(AMDeviceDisconnect(device) == 0);
-
-    if (operation == OP_INSTALL) {
-        assert(AMDeviceTransferApplication(afcFd, path, NULL, transfer_callback, NULL) == 0);
-        close(afcFd);
-    }
-
-    CFStringRef keys[] = { CFSTR("PackageType") };
-    CFStringRef values[] = { CFSTR("Developer") };
-    CFDictionaryRef options = CFDictionaryCreate(NULL, (const void **)&keys, (const void **)&values, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
-
-    AMDeviceConnect(device);
-    assert(AMDeviceIsPaired(device));
-    assert(AMDeviceValidatePairing(device) == 0);
-    assert(AMDeviceStartSession(device) == 0);
-
-    int installFd;
-    assert(AMDeviceStartService(device, CFSTR("com.apple.mobile.installation_proxy"), (service_conn_t *) &installFd, NULL) == 0);
-
-    assert(AMDeviceStopSession(device) == 0);
-    assert(AMDeviceDisconnect(device) == 0);
-
-    if (operation == OP_INSTALL) {
-        mach_error_t result = AMDeviceInstallApplication(installFd, path, options, operation_callback, NULL);
-        if (result != 0)
-        {
-			PRINT("AMDeviceInstallApplication failed: %d\n", result);
-			exit(EXIT_FAILURE);
-        }
-    }
-	else if (operation == OP_UNINSTALL) {
-        mach_error_t result = AMDeviceUninstallApplication (installFd, path, NULL, operation_callback, NULL);
-        if (result != 0)
-        {
-			PRINT("AMDeviceUninstallApplication failed: %d\n", result);
-			exit(EXIT_FAILURE);
-        }
-    }
-
-
-    close(installFd);
-
-    CFRelease(path);
-    CFRelease(options);
-
-    if (operation == OP_INSTALL)
-        PRINT("[100%%] Installed package %s\n", app_path);
-    else if (operation == OP_UNINSTALL)
-        PRINT("[100%%] uninstalled package %s\n", app_path);
 
 
     if (!debug) exit(EXIT_SUCCESS); // no debug phase
@@ -548,7 +552,9 @@ void handle_device(AMDeviceRef device) {
 
     PRINT("------ Debug phase ------\n");
 
-    mount_developer_image(device);      // put debugserver on the device
+    if (!no_mount)
+        mount_developer_image(device);      // put debugserver on the device
+
     start_remote_debug_server(device);  // start debugserver
     write_gdb_prep_cmds(device, url);   // dump the necessary gdb commands into a file
 
@@ -557,14 +563,20 @@ void handle_device(AMDeviceRef device) {
     PRINT("[100%%] Connecting to remote debug server\n");
     PRINT("-------------------------\n");
 
-    signal(SIGHUP, gdb_ready_handler);
-
-    pid_t parent = getpid();
-    int pid = fork();
-    if (pid == 0) {
-        system(GDB_SHELL);      // launch gdb
-        kill(parent, SIGHUP);  // "No. I am your father."
-        _exit(EXIT_SUCCESS);
+	if (wait_with_gdb) {
+		printf ("You must now execute: \n");
+		printf ("%s\n", GDB_SHELL);
+		// Figure out when to exit
+	} else {
+		signal(SIGHUP, gdb_ready_handler);
+	
+		pid_t parent = getpid();
+		int pid = fork();
+		if (pid == 0) {
+			system(GDB_SHELL);      // launch gdb
+			kill(parent, SIGHUP);  // "No. I am your father."
+			_exit(EXIT_SUCCESS);
+		}
     }
 }
 
@@ -593,6 +605,8 @@ void usage(const char* app) {
     printf ("    * Install the specified app with optional arguments to the specified device, or all attached devices if none are specified. \n\n");
     printf ("   uninstall  [-i/--id device_id] -b/--bundle bundle.app \n");
     printf ("    * Removed the specified bundle identifier (eg com.foo.MyApp) from the specified device, or all attached devices if none are specified. \n\n");
+    printf ("   debug [-w/--wait] [-n/--no-mount] [-b/--bundle bundle.app [-a/--args arguments] \n");
+    printf ("    * Debug the app with the specified bundle identifier. Optional wait instead of running gdb automatically. Opt-out of mounting the developer image.\n");
     printf ("   list-devices  \n");
     printf ("    * List all attached devices. \n\n");
 }
@@ -607,13 +621,15 @@ int main(int argc, char *argv[]) {
         { "bundle", required_argument, NULL, 'b' },
    
         { "debug", no_argument, NULL, 'd' },
+        { "nomount", no_argument, NULL, 'n' },
         { "args", required_argument, NULL, 'a' },
 
+        { "wait", no_argument, NULL, 'w' },
         { NULL, 0, NULL, 0 },
     };
 
     char ch;
-    while ((ch = getopt_long(argc, argv, "qvtibda:", global_longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "qvtibdan:", global_longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'q':
@@ -637,6 +653,12 @@ int main(int argc, char *argv[]) {
         case 'i':
             device_id = optarg;
             break;
+        case 'w':
+            wait_with_gdb = 1;
+            break;
+        case 'n':
+            no_mount = 1;
+            break;
         default:
             usage(argv[0]);
             return 1;
@@ -655,6 +677,9 @@ int main(int argc, char *argv[]) {
         operation = OP_UNINSTALL;
     } else if (strcmp (argv [optind], "list-devices") == 0) {
         operation = OP_LIST_DEVICES;
+    } else if (strcmp (argv [optind], "debug") == 0) {
+        operation = OP_DEBUG;
+        debug = 1;
     } else {
         usage (argv [0]);
         exit(EXIT_SUCCESS);
