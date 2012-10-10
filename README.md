@@ -23,6 +23,9 @@ Commands available:
 * `list-devices`:
   List all attached devices. 
 
+* `debug`     [-w/--wait] [-n/--no-mount] [-b/--bundle bundle.app [-a/--args arguments] 
+  Debug the app with the specified bundle identifier. Optional wait instead of running gdb automatically. Opt-out of mounting the developer image.
+
 
 ## Demo
 
