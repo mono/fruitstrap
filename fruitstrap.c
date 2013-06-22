@@ -748,19 +748,15 @@ int main(int argc, char *argv[]) {
             no_mount = 1;
             break;
         default:
-		printf ("1\n");
             usage(argv[0]);
             return 1;
         }
     }
-    
-    if (optind >= argc) {
-        usage(argv [0]);
-        exit(EXIT_SUCCESS);
-    }
 
     operation = OP_NONE;
-    if (strcmp (argv [optind], "install") == 0) {
+	if (debug) {
+		operation = OP_DEBUG;
+	} else if (strcmp (argv [optind], "install") == 0) {
         operation = OP_INSTALL;
     } else if (strcmp (argv [optind], "uninstall") == 0) {
         operation = OP_UNINSTALL;
