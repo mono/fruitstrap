@@ -31,6 +31,7 @@
 	script fruitstrap_connect_url=\"connect://127.0.0.1:12345\"\n\
 	platform select remote-ios\n\
 	target create \"{disk_app}\"\n\
+	script x=lldb.target.modules\n\
     #settings set target.process.extra-startup-command \"QSetLogging:bitmask=LOG_ALL;\"\n \
 	command script import \"" PYTHON_MODULE_PATH "\"\n\
 ")
