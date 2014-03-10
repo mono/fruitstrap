@@ -18,7 +18,7 @@
 #define PYTHON_MODULE_PATH "/tmp/fruitstrap.py"
 #define LLDB_SHELL "/usr/bin/lldb -s " PREP_CMDS_PATH
 
-#define PRINT(...) if (!quiet) printf(__VA_ARGS__)
+#define PRINT(...) do { if (!quiet) printf(__VA_ARGS__); } while (0)
 
 /*
  * Startup script passed to lldb.
@@ -698,6 +698,8 @@ void usage(const char* app) {
     printf ("    * Debug the app with the specified bundle identifier. Optional wait instead of running gdb automatically. Opt-out of mounting the developer image.\n");
     printf ("   list-devices  \n");
     printf ("    * List all attached devices. \n\n");
+	printf ("   i <bundle path>\n");
+	printf ("   d <bundle path>\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -766,6 +768,13 @@ int main(int argc, char *argv[]) {
     } else if (strcmp (argv [optind], "debug") == 0) {
         operation = OP_DEBUG;
         debug = 1;
+	} else if (strcmp (argv [optind], "i") == 0) {
+        operation = OP_INSTALL;
+        app_path = argv [optind + 1];
+	} else if (strcmp (argv [optind], "d") == 0) {
+        operation = OP_DEBUG;
+        debug = 1;
+        app_path = argv [optind + 1];
     } else {
         usage (argv [0]);
         exit(EXIT_SUCCESS);
