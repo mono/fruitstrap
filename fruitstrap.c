@@ -15,7 +15,6 @@
 
 #define FDVENDOR_PATH  "/tmp/fruitstrap-remote-debugserver"
 #define PREP_CMDS_PATH "/tmp/fruitstrap-lldb-prep-cmds"
-#define PYTHON_MODULE_PATH "/tmp/fruitstrap.py"
 #define LLDB_SHELL "/usr/bin/lldb -s " PREP_CMDS_PATH
 
 #define PRINT(...) do { if (!quiet) printf(__VA_ARGS__); } while (0)
@@ -25,6 +24,9 @@
  * To see how xcode interacts with lldb, put this into .lldbinit:
  * log enable -v -f /Users/vargaz/lldb.log lldb all
  * log enable -v -f /Users/vargaz/gdb-remote.log gdb-remote all
+ *
+ * Some things do not seem to work when using the normal commands like process connect/launch, so we invoke them
+ * through the python interface.
  */
 #define LLDB_PREP_CMDS CFSTR("\
 	script fruitstrap_device_app=\"{device_app}\"\n\
@@ -33,30 +35,10 @@
 	target create \"{disk_app}\"\n\
 	script x=lldb.target.modules\n\
     #settings set target.process.extra-startup-command \"QSetLogging:bitmask=LOG_ALL;\"\n \
-	command script import \"" PYTHON_MODULE_PATH "\"\n\
-")
-
-/*
- * Some things do not seem to work when using the normal commands like process connect/launch, so we invoke them 
- * through the python interface. Also, Launch () doesn't seem to work when ran from init_module (), so we add
- * a command which can be used by the user to run it.
- */
-#define LLDB_FRUITSTRAP_MODULE CFSTR("\
-import lldb\n\
-\n\
-def __lldb_init_module(debugger, internal_dict):\n\
-	# These two are passed in by the script which loads us\n\
-	device_app=internal_dict['fruitstrap_device_app']\n\
-	connect_url=internal_dict['fruitstrap_connect_url']\n\
-	lldb.target.modules[0].SetPlatformFileSpec(lldb.SBFileSpec(device_app))\n\
-	lldb.debugger.HandleCommand (\"command script add -s asynchronous -f fruitstrap.fsrun_command run\")\n\
-	error=lldb.SBError()\n\
-	lldb.target.ConnectRemote(lldb.target.GetDebugger().GetListener(),connect_url,None,error)\n\
-	print (\"Use 'run' to start the app.\")\n\
-\n\
-def fsrun_command(debugger, command, result, internal_dict):\n\
-	error=lldb.SBError()\n\
-	lldb.target.Launch(lldb.SBLaunchInfo(None),error)\n\
+	script lldb.target.modules[0].SetPlatformFileSpec(lldb.SBFileSpec(fruitstrap_device_app))\n\
+	script error=lldb.SBError()\n\
+	script lldb.target.Launch(lldb.SBLaunchInfo(None),error)\n\
+	script lldb.target.ConnectRemote(lldb.target.GetDebugger().GetListener(),fruitstrap_connect_url,None,error)\n\
 ")
 
 typedef enum {
@@ -390,12 +372,6 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
     CFDataRef cmds_data = CFStringCreateExternalRepresentation(NULL, cmds, kCFStringEncodingASCII, 0);
     FILE *out = fopen(PREP_CMDS_PATH, "w");
     fwrite(CFDataGetBytePtr(cmds_data), CFDataGetLength(cmds_data), 1, out);
-    fclose(out);
-
-    CFMutableStringRef pmodule = CFStringCreateMutableCopy(NULL, 0, LLDB_FRUITSTRAP_MODULE);
-    CFDataRef pmodule_data = CFStringCreateExternalRepresentation(NULL, pmodule, kCFStringEncodingASCII, 0);
-    out = fopen(PYTHON_MODULE_PATH, "w");
-    fwrite(CFDataGetBytePtr(pmodule_data), CFDataGetLength(pmodule_data), 1, out);
     fclose(out);
 
     CFRelease(cmds);
