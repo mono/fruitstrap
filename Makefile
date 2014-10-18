@@ -1,7 +1,7 @@
 SDK_PATH=$(shell xcode-select -print-path)
 IOS_CC = $(SDK_PATH)/Platforms/iPhoneOS.platform/Developer/usr/bin/gcc
 
-all: demo.app fruitstrap
+all: fruitstrap
 
 demo.app: demo Info.plist
 	mkdir -p demo.app
