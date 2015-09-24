@@ -129,6 +129,11 @@ CFStringRef copy_device_support_path(AMDeviceRef device) {
 	}
 	if (!found)
 	{
+		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/Platforms/AppleTVOS.platform/DeviceSupport/%@ (%@)"), xcodeDevPath, version, build);
+		found = path_exists(path);
+	}
+	if (!found)
+	{
 		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/Platforms/iPhoneOS.platform/DeviceSupport/%@"), xcodeDevPath, version);
 		found = path_exists(path);
 	}
@@ -177,6 +182,11 @@ CFStringRef copy_developer_disk_image_path(AMDeviceRef device) {
 	if (!found)
 	{
 		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)/DeveloperDiskImage.dmg"), xcodeDevPath, version, build);
+		found = path_exists(path);
+	}
+	if (!found)
+	{
+		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/Platforms/AppleTVOS.platform/DeviceSupport/%@ (%@)/DeveloperDiskImage.dmg"), xcodeDevPath, version, build);
 		found = path_exists(path);
 	}
 	if (!found)
