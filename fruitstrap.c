@@ -70,6 +70,7 @@ service_conn_t gdbfd;
 
 Boolean path_exists(CFTypeRef path) {
     if (CFGetTypeID(path) == CFStringGetTypeID()) {
+		printf ("Trying: %s\n", CFStringGetCStringPtr(path, kCFStringEncodingMacRoman));
         CFURLRef url = CFURLCreateWithFileSystemPath(NULL, path, kCFURLPOSIXPathStyle, true);
         Boolean result = CFURLResourceIsReachable(url, NULL);
         CFRelease(url);
